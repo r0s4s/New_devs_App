@@ -1,6 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 import logging
 from typing import Dict, Any
+from decimal import Decimal, ROUND_HALF_UP
+
 from app.services.cache import get_revenue_summary
 from app.core.auth import authenticate_request as get_current_user
 
@@ -24,12 +26,12 @@ async def get_dashboard_summary(
         logger.error(f"Revenue lookup failed for {property_id} (tenant: {tenant_id}): {e}")
         raise HTTPException(status_code=503, detail="Revenue data temporarily unavailable")
     
-    # We will fix the floating-point precision error in a later step
-    total_revenue_float = float(revenue_data['total'])
+    # Keep money as Decimal end to end; round once, half-up, to cents.
+    total = Decimal(revenue_data['total']).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
     
     return {
         "property_id": revenue_data['property_id'],
-        "total_revenue": total_revenue_float,
+        "total_revenue": str(total),
         "currency": revenue_data['currency'],
         "reservations_count": revenue_data['count']
     }
