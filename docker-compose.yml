@@ -11,6 +11,8 @@ services:
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/propertyflow
       - REDIS_URL=redis://redis:6379/0
       - SECRET_KEY=debug_challenge_secret
+      - SUPABASE_URL=https://dummy.supabase.co
+      - SUPABASE_SERVICE_ROLE_KEY=dummy
     depends_on:
       - db
       - redis
