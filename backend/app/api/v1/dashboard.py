@@ -1,8 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
+import logging
 from typing import Dict, Any
 from app.services.cache import get_revenue_summary
 from app.core.auth import authenticate_request as get_current_user
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 @router.get("/dashboard/summary")
@@ -11,10 +13,18 @@ async def get_dashboard_summary(
     current_user: dict = Depends(get_current_user)
 ) -> Dict[str, Any]:
     
-    tenant_id = getattr(current_user, "tenant_id", "default_tenant") or "default_tenant"
+    tenant_id = getattr(current_user, "tenant_id", None)
+    if not tenant_id:
+        # Never fall back to a shared/default tenant for financial data
+        raise HTTPException(status_code=403, detail="No tenant associated with this user")
     
-    revenue_data = await get_revenue_summary(property_id, tenant_id)
+    try:
+        revenue_data = await get_revenue_summary(property_id, tenant_id)
+    except Exception as e:
+        logger.error(f"Revenue lookup failed for {property_id} (tenant: {tenant_id}): {e}")
+        raise HTTPException(status_code=503, detail="Revenue data temporarily unavailable")
     
+    # We will fix the floating-point precision error in a later step
     total_revenue_float = float(revenue_data['total'])
     
     return {
